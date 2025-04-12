@@ -9,6 +9,7 @@ from services.gemini_service import GeminiService
 from database.mongodb import MongoDB
 import magic
 from werkzeug.utils import secure_filename
+from typing import Dict, List
 
 # Load environment variables
 load_dotenv()
@@ -52,13 +53,12 @@ def register():
     try:
         data = request.json
         username = data.get('username')
-        email = data.get('email')
         password = data.get('password')
         
-        if not all([username, email, password]):
+        if not all([username, password]):
             return jsonify({'error': 'Missing required fields'}), 400
             
-        user = User(username=username, email=email, password=password)
+        user = User(username=username, password=password)
         user_id = db.save_user(user)
         
         return jsonify({
@@ -98,7 +98,7 @@ def create_challenge():
     try:
         user_id = request.form.get('user_id')
         photo = request.files.get('photo')
-        
+
         if not all([user_id, photo]):
             return jsonify({'error': 'Missing required fields'}), 400
             
@@ -113,11 +113,11 @@ def create_challenge():
         # Create challenge
         challenge = Challenge(
             user_id=user_id,
-            location={'lat': 0, 'lng': 0},  # Dummy location
+            location={'lat': 0, 'lng': 0},
             embedding=embedding,
             caption=caption
         )
-        
+
         # Save to database
         challenge_id = db.save_challenge(challenge)
         

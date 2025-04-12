@@ -1,8 +1,26 @@
 from datetime import datetime
 from typing import List, Dict, Any
 import numpy as np
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, Float
+from sqlalchemy.orm import relationship
+from database import Base
+import json
 
-class Challenge:
+class Challenge(Base):
+    __tablename__ = "challenges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    title = Column(String(100), nullable=False)
+    description = Column(Text)
+    photo_path = Column(String(255))
+    boundary = Column(Text)  # Store GeoJSON as string
+    latitude = Column(Float)
+    longitude = Column(Float)
+
+    user = relationship("User", back_populates="challenges")
+    guesses = relationship("Guess", back_populates="challenge")
+
     def __init__(self, user_id: str, location: Dict[str, float], 
                  embedding: np.ndarray, caption: str):
         self.user_id = user_id
@@ -14,9 +32,14 @@ class Challenge:
         
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'user_id': self.user_id,
-            'location': self.location,
-            'caption': self.caption,
+            "id": self.id,
+            "user_id": self.user_id,
+            "title": self.title,
+            "description": self.description,
+            "photo_path": self.photo_path,
+            "boundary": json.loads(self.boundary) if self.boundary else None,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
             'created_at': self.created_at.isoformat(),
             'leaderboard': self.leaderboard
         }

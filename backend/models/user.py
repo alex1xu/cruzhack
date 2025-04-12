@@ -4,16 +4,13 @@ import bcrypt
 import re
 
 class User:
-    def __init__(self, username: str, email: str, password: str):
+    def __init__(self, username: str, password: str):
         if not self._validate_username(username):
             raise ValueError("Invalid username format")
-        if not self._validate_email(email):
-            raise ValueError("Invalid email format")
         if not self._validate_password(password):
             raise ValueError("Invalid password format")
             
         self.username = username
-        self.email = email
         self.password_hash = self._hash_password(password)
         self.created_at = datetime.utcnow()
         self.stats = {
@@ -25,7 +22,6 @@ class User:
     def to_dict(self) -> Dict[str, Any]:
         return {
             'username': self.username,
-            'email': self.email,
             'password_hash': self.password_hash,
             'created_at': self.created_at.isoformat(),
             'stats': self.stats
@@ -35,7 +31,6 @@ class User:
     def from_dict(cls, data: Dict[str, Any]) -> 'User':
         user = cls(
             username=data['username'],
-            email=data['email'],
             password="dummy"  # Password is not stored in plain text
         )
         user.password_hash = data['password_hash']
@@ -58,12 +53,6 @@ class User:
         # Username must be 3-20 characters, alphanumeric with underscores
         pattern = r'^[a-zA-Z0-9_]{3,20}$'
         return bool(re.match(pattern, username))
-        
-    @staticmethod
-    def _validate_email(email: str) -> bool:
-        # Basic email validation
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        return bool(re.match(pattern, email))
         
     @staticmethod
     def _validate_password(password: str) -> bool:

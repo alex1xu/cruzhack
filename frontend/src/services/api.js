@@ -10,10 +10,9 @@ const api = axios.create({
 });
 
 export const authService = {
-    register: async (username, email, password) => {
+    register: async (username, password) => {
         const response = await api.post('/auth/register', {
             username,
-            email,
             password,
         });
         return response.data;
@@ -29,11 +28,7 @@ export const authService = {
 };
 
 export const challengeService = {
-    createChallenge: async (userId, photo) => {
-        const formData = new FormData();
-        formData.append('user_id', userId);
-        formData.append('photo', photo);
-
+    createChallenge: async (formData) => {
         const response = await api.post('/challenges', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
@@ -44,6 +39,11 @@ export const challengeService = {
 
     getChallenges: async () => {
         const response = await api.get('/challenges');
+        return response.data;
+    },
+
+    getChallenge: async (id) => {
+        const response = await api.get(`/challenges/${id}`);
         return response.data;
     },
 

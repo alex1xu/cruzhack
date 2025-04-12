@@ -5,6 +5,7 @@ from models.challenge import Challenge
 from models.user import User
 from bson import ObjectId
 from datetime import datetime
+from typing import Dict, List
 
 class MongoDB:
     def __init__(self):
@@ -13,9 +14,7 @@ class MongoDB:
         self.challenges = self.db['challenges']
         self.users = self.db['users']
         
-        # Create indexes
         self.users.create_index('username', unique=True)
-        self.users.create_index('email', unique=True)
         
     def save_challenge(self, challenge: Challenge) -> str:
         challenge_dict = challenge.to_dict()
@@ -72,7 +71,7 @@ class MongoDB:
             return str(result.inserted_id)
         except Exception as e:
             if 'duplicate key error' in str(e):
-                raise ValueError("Username or email already exists")
+                raise ValueError("Username already exists")
             raise e
         
     def get_user(self, user_id: str) -> Optional[User]:
