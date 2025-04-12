@@ -162,10 +162,11 @@ def get_challenges():
 def submit_guess(challenge_id):
     try:
         user_id = request.form.get('user_id')
+        username = request.form.get('username')
         photo = request.files.get('photo')
         guess_count = int(request.form.get('guess_count', 1))
         
-        if not all([user_id, photo]):
+        if not all([user_id, username, photo]):
             return jsonify({'error': 'Missing required fields'}), 400
             
         # Validate image
@@ -192,15 +193,15 @@ def submit_guess(challenge_id):
         
         if is_correct:
             # Update leaderboard if guess is correct
-            db.update_leaderboard(challenge_id, user_id, guess_count)
-            hint = "Congratulations! You've solved the challenge!"
+            db.update_leaderboard(challenge_id, user_id, username, guess_count)
+            feedback = "Congratulations! You've solved the challenge!"
         else:
             # Generate a hint using the Gemini service
-            hint = gemini_service.generate_hint(challenge.caption, guess_caption)
+            feedback = gemini_service.generate_hint(challenge.caption, guess_caption)
             
         return jsonify({
-            'is_correct': is_correct,
-            'hint': hint,
+            'correct': is_correct,
+            'feedback': feedback,
             'similarity': float(similarity)
         })
         

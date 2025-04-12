@@ -18,52 +18,67 @@ class MongoDB:
         
     def save_challenge(self, challenge: Challenge) -> str:
         challenge_dict = challenge.to_dict()
-        challenge_dict['embedding'] = challenge.embedding.tolist()
+        if challenge_dict.get('embedding') is not None:
+            challenge_dict['embedding'] = challenge_dict['embedding'].tolist()
         result = self.challenges.insert_one(challenge_dict)
         return str(result.inserted_id)
         
     def get_challenge(self, challenge_id: str) -> Optional[Challenge]:
-        challenge_data = self.challenges.find_one({'_id': ObjectId(challenge_id)})
-        if challenge_data:
-            return Challenge.from_dict(challenge_data)
-        return None
+        try:
+            challenge_data = self.challenges.find_one({'_id': ObjectId(challenge_id)})
+            if challenge_data:
+                return Challenge.from_dict(challenge_data)
+            return None
+        except Exception:
+            return None
         
     def get_all_challenges(self) -> List[Challenge]:
         challenges = self.challenges.find()
         return [Challenge.from_dict(challenge) for challenge in challenges]
         
-    def update_leaderboard(self, challenge_id: str, user_id: str, guesses: int):
-        # Find existing entry for user
-        challenge = self.challenges.find_one({'_id': ObjectId(challenge_id)})
-        if not challenge:
-            return
+    def update_leaderboard(self, challenge_id: str, user_id: str, username: str, guesses: int):
+        try:
+            # Find existing entry for user
+            challenge = self.challenges.find_one({'_id': ObjectId(challenge_id)})
+            if not challenge:
+                return
+                
+            leaderboard = challenge.get('leaderboard', [])
+            user_entry = next((entry for entry in leaderboard if entry['user_id'] == user_id), None)
             
-        leaderboard = challenge.get('leaderboard', [])
-        user_entry = next((entry for entry in leaderboard if entry['user_id'] == user_id), None)
-        
-        if user_entry:
-            # Update if new score is better
-            if guesses < user_entry['guesses']:
+            if user_entry:
+                # Update if new score is better
+                if guesses < user_entry['guesses']:
+                    self.challenges.update_one(
+                        {'_id': ObjectId(challenge_id), 'leaderboard.user_id': user_id},
+                        {'$set': {'leaderboard.$.guesses': guesses}}
+                    )
+            else:
+                # Add new entry
                 self.challenges.update_one(
-                    {'_id': ObjectId(challenge_id), 'leaderboard.user_id': user_id},
-                    {'$set': {'leaderboard.$.guesses': guesses}}
+                    {'_id': ObjectId(challenge_id)},
+                    {'$push': {'leaderboard': {
+                        'user_id': user_id,
+                        'username': username,
+                        'guesses': guesses
+                    }}}
                 )
-        else:
-            # Add new entry
-            self.challenges.update_one(
-                {'_id': ObjectId(challenge_id)},
-                {'$push': {'leaderboard': {'user_id': user_id, 'guesses': guesses}}}
-            )
+        except Exception as e:
+            print(f"Error updating leaderboard: {str(e)}")
         
     def get_leaderboard(self, challenge_id: str) -> List[Dict]:
-        challenge = self.challenges.find_one({'_id': ObjectId(challenge_id)})
-        if not challenge:
+        try:
+            challenge = self.challenges.find_one({'_id': ObjectId(challenge_id)})
+            if not challenge:
+                return []
+                
+            leaderboard = challenge.get('leaderboard', [])
+            # Sort by number of guesses (ascending)
+            leaderboard.sort(key=lambda x: x['guesses'])
+            return leaderboard
+        except Exception as e:
+            print(f"Error getting leaderboard: {str(e)}")
             return []
-            
-        leaderboard = challenge.get('leaderboard', [])
-        # Sort by number of guesses (ascending)
-        leaderboard.sort(key=lambda x: x['guesses'])
-        return leaderboard
         
     def save_user(self, user: User) -> str:
         try:
