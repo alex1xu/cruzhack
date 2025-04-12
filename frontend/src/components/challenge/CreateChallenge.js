@@ -1,237 +1,181 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { challengeService } from '../../services/api';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { MapContainer, TileLayer, useMap, FeatureGroup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet-draw/dist/leaflet.draw.css';
+// import 'leaflet-draw/dist/leaflet.draw.css';
+import "leaflet-draw/dist/leaflet.draw-src.css";
 import 'leaflet-draw';
+import { Form, Input, Button, Upload, message } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
+import { challengeService } from '../../services/api';
+import LocationSearch from '../common/LocationSearch';
 
-const LocationSearch = ({ onLocationFound }) => {
+const LeafletDrawControl = ({ onCreated, onDeleted, drawnItemsRef }) => {
     const map = useMap();
-    const [searchQuery, setSearchQuery] = useState('');
 
-    const handleSearch = async (e) => {
-        e.preventDefault();
-        try {
-            const response = await fetch(
-                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`
-            );
-            const data = await response.json();
-            if (data.length > 0) {
-                const { lat, lon } = data[0];
-                map.setView([lat, lon], 15);
-                onLocationFound({ lat, lon });
+    useEffect(() => {
+        const drawControl = new L.Control.Draw({
+            draw: {
+                polygon: {
+                    shapeOptions: {
+                        color: '#3388ff',
+                        fillColor: '#3388ff',
+                        fillOpacity: 0.2
+                    },
+                    allowIntersection: false,
+                    drawError: {
+                        color: '#b00b00',
+                        message: 'Polygon cannot intersect itself'
+                    }
+                },
+                polyline: false,
+                rectangle: false,
+                circle: false,
+                marker: false,
+                circlemarker: false,
+            },
+            edit: {
+                featureGroup: drawnItemsRef.current,
             }
-        } catch (error) {
-            console.error('Error searching location:', error);
-        }
-    };
+        });
+        map.addControl(drawControl);
+        map.on('draw:created', onCreated);
+        map.on('draw:deleted', onDeleted);
 
-    return (
-        <div className="search-container" style={{ position: 'absolute', top: '10px', left: '50px', zIndex: 1000 }}>
-            <form onSubmit={handleSearch} className="d-flex">
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search location..."
-                    className="form-control"
-                    style={{ width: '300px' }}
-                />
-                <button type="submit" className="btn btn-primary ms-2">Search</button>
-            </form>
-        </div>
-    );
+        return () => {
+            map.off('draw:created', onCreated);
+            map.off('draw:deleted', onDeleted);
+            map.removeControl(drawControl);
+        };
+    }, [map, onCreated, onDeleted, drawnItemsRef]);
+
+    return null;
 };
 
 const CreateChallenge = () => {
-    const [title, setTitle] = useState('');
-    const [description, setDescription] = useState('');
-    const [photo, setPhoto] = useState(null);
-    const [preview, setPreview] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [boundary, setBoundary] = useState(null);
-    const mapRef = useRef(null);
-    const drawControlRef = useRef(null);
-    const { user } = useAuth();
-    const navigate = useNavigate();
+    const [form] = Form.useForm();
+    const [drawnPolygon, setDrawnPolygon] = useState(null);
+    const [map, setMap] = useState(null);
+    const drawnItemsRef = useRef(new L.FeatureGroup());
 
-    useEffect(() => {
-        if (mapRef.current) {
-            const map = mapRef.current;
-            const drawnItems = new L.FeatureGroup();
-            map.addLayer(drawnItems);
+    // Event handler for when a new shape is drawn
+    const handleDrawCreated = useCallback((e) => {
+        const layer = e.layer;
+        drawnItemsRef.current.clearLayers();
+        drawnItemsRef.current.addLayer(layer);
+        setDrawnPolygon(layer);
 
-            drawControlRef.current = new L.Control.Draw({
-                draw: {
-                    polygon: {
-                        shapeOptions: {
-                            color: '#3388ff',
-                            fillColor: '#3388ff',
-                            fillOpacity: 0.2
-                        }
-                    },
-                    polyline: false,
-                    rectangle: false,
-                    circle: false,
-                    marker: false,
-                    circlemarker: false
-                },
-                edit: {
-                    featureGroup: drawnItems
-                }
-            });
-
-            map.addControl(drawControlRef.current);
-
-            map.on(L.Draw.Event.CREATED, (e) => {
-                const layer = e.layer;
-                drawnItems.addLayer(layer);
-                setBoundary(layer.toGeoJSON());
-            });
-
-            map.on(L.Draw.Event.DELETED, () => {
-                setBoundary(null);
-            });
-
-            return () => {
-                map.removeControl(drawControlRef.current);
-            };
+        // Fit map to the drawn polygon
+        if (map) {
+            map.fitBounds(layer.getBounds());
         }
+    }, [map]);
+
+    // Event handler for when a drawn shape is deleted
+    const handleDrawDeleted = useCallback(() => {
+        setDrawnPolygon(null);
     }, []);
 
-    const handlePhotoChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setPhoto(file);
-            setPreview(URL.createObjectURL(file));
+    // Callback to recenter and zoom the map when a location is found/selected
+    const handleLocationFound = (coordinates) => {
+        if (map) {
+            map.setView(coordinates, 15);
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
-
-        if (!photo) {
-            setError('Please select a photo');
-            setLoading(false);
+    // Handle challenge form submission
+    const handleSubmit = async (values) => {
+        if (!drawnPolygon) {
+            message.error('Please draw a boundary for the challenge');
             return;
         }
 
-        if (!boundary) {
-            setError('Please draw a boundary region');
-            setLoading(false);
-            return;
+        const formData = new FormData();
+        formData.append('title', values.title);
+        formData.append('description', values.description);
+        formData.append('boundary', JSON.stringify(drawnPolygon.toGeoJSON().geometry));
+
+        if (values.photo) {
+            formData.append('photo', values.photo[0].originFileObj);
         }
 
         try {
-            const formData = new FormData();
-            formData.append('title', title);
-            formData.append('description', description);
-            formData.append('photo', photo);
-            formData.append('boundary', JSON.stringify(boundary));
-            formData.append('user_id', user.user_id);
-
             await challengeService.createChallenge(formData);
-            navigate('/');
-        } catch (err) {
-            setError(err.response?.data?.error || 'Failed to create challenge');
-        } finally {
-            setLoading(false);
+            message.success('Challenge created successfully');
+            form.resetFields();
+            drawnItemsRef.current.clearLayers();
+            setDrawnPolygon(null);
+        } catch (error) {
+            console.error('Error creating challenge:', error);
+            message.error('Failed to create challenge');
         }
     };
 
     return (
         <div className="container mt-4">
-            <div className="row">
-                <div className="col-md-6">
-                    <div className="card">
-                        <div className="card-body">
-                            <h2 className="text-center mb-4">Create Challenge</h2>
-                            {error && <div className="alert alert-danger">{error}</div>}
-                            <form onSubmit={handleSubmit}>
-                                <div className="mb-3">
-                                    <label htmlFor="title" className="form-label">Title</label>
-                                    <input
-                                        type="text"
-                                        className="form-control"
-                                        id="title"
-                                        value={title}
-                                        onChange={(e) => setTitle(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div className="mb-3">
-                                    <label htmlFor="description" className="form-label">Description</label>
-                                    <textarea
-                                        className="form-control"
-                                        id="description"
-                                        value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
-                                        rows="3"
-                                        required
-                                    />
-                                </div>
-                                <div className="mb-3">
-                                    <label htmlFor="photo" className="form-label">Challenge Photo</label>
-                                    <input
-                                        type="file"
-                                        className="form-control"
-                                        id="photo"
-                                        accept="image/*"
-                                        onChange={handlePhotoChange}
-                                        required
-                                    />
-                                </div>
-                                {preview && (
-                                    <div className="mb-3">
-                                        <img
-                                            src={preview}
-                                            alt="Preview"
-                                            className="img-fluid rounded"
-                                            style={{ maxHeight: '200px' }}
-                                        />
-                                    </div>
-                                )}
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary w-100"
-                                    disabled={loading}
-                                >
-                                    {loading ? 'Creating Challenge...' : 'Create Challenge'}
-                                </button>
-                            </form>
-                        </div>
+            <h2>Create New Challenge</h2>
+            <Form form={form} onFinish={handleSubmit} layout="vertical">
+                <Form.Item
+                    name="title"
+                    label="Title"
+                    rules={[{ required: true, message: 'Please enter a title' }]}
+                >
+                    <Input />
+                </Form.Item>
+
+                <Form.Item
+                    name="description"
+                    label="Description"
+                    rules={[{ required: true, message: 'Please enter a description' }]}
+                >
+                    <Input.TextArea />
+                </Form.Item>
+
+                <Form.Item
+                    name="photo"
+                    label="Photo"
+                    rules={[{ required: true, message: 'Please upload a photo' }]}
+                >
+                    <Upload
+                        listType="picture"
+                        beforeUpload={() => false}
+                        maxCount={1}
+                    >
+                        <Button icon={<UploadOutlined />}>Upload Photo</Button>
+                    </Upload>
+                </Form.Item>
+
+                <div style={{ height: '400px', marginBottom: '20px', position: 'relative' }}>
+                    <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 1000 }}>
+                        <LocationSearch onLocationFound={handleLocationFound} />
                     </div>
+                    <MapContainer
+                        center={[0, 0]}
+                        zoom={2}
+                        style={{ height: '100%', width: '100%' }}
+                        whenCreated={setMap}
+                    >
+                        <TileLayer
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        />
+                        <FeatureGroup ref={drawnItemsRef} />
+                        <LeafletDrawControl
+                            onCreated={handleDrawCreated}
+                            onDeleted={handleDrawDeleted}
+                            drawnItemsRef={drawnItemsRef}
+                        />
+                    </MapContainer>
                 </div>
-                <div className="col-md-6">
-                    <div className="card">
-                        <div className="card-body">
-                            <h3 className="mb-3">Select Challenge Boundary</h3>
-                            <div style={{ height: '500px', width: '100%' }}>
-                                <MapContainer
-                                    center={[0, 0]}
-                                    zoom={2}
-                                    style={{ height: '100%', width: '100%' }}
-                                    ref={mapRef}
-                                >
-                                    <TileLayer
-                                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                                    />
-                                    <LocationSearch onLocationFound={() => { }} />
-                                </MapContainer>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+
+                <Form.Item>
+                    <Button type="primary" htmlType="submit">
+                        Create Challenge
+                    </Button>
+                </Form.Item>
+            </Form>
         </div>
     );
 };
 
-export default CreateChallenge; 
+export default CreateChallenge;

@@ -1,9 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
-
 const api = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -29,7 +27,7 @@ export const authService = {
 
 export const challengeService = {
     createChallenge: async (formData) => {
-        const response = await api.post('/challenges', formData, {
+        const response = await api.post('/api/challenges/', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -38,22 +36,17 @@ export const challengeService = {
     },
 
     getChallenges: async () => {
-        const response = await api.get('/challenges');
+        const response = await api.get('/api/challenges/');
         return response.data;
     },
 
     getChallenge: async (id) => {
-        const response = await api.get(`/challenges/${id}`);
+        const response = await api.get(`/api/challenges/${id}`);
         return response.data;
     },
 
-    submitGuess: async (challengeId, userId, photo, guessCount) => {
-        const formData = new FormData();
-        formData.append('user_id', userId);
-        formData.append('photo', photo);
-        formData.append('guess_count', guessCount);
-
-        const response = await api.post(`/challenges/${challengeId}/guess`, formData, {
+    submitGuess: async (challengeId, formData) => {
+        const response = await api.post(`/api/challenges/${challengeId}/guess`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -62,7 +55,7 @@ export const challengeService = {
     },
 
     getLeaderboard: async (challengeId) => {
-        const response = await api.get(`/challenges/${challengeId}/leaderboard`);
+        const response = await api.get(`/api/challenges/${challengeId}/leaderboard`);
         return response.data;
     },
 }; 

@@ -8,6 +8,7 @@ from ..models.challenge import Challenge
 from ..schemas.challenge import ChallengeCreate, Challenge as ChallengeSchema
 from ..auth import get_current_user
 from ..models.user import User
+from geojson_pydantic import Polygon
 
 router = APIRouter()
 
@@ -20,9 +21,7 @@ def create_challenge(
     db_challenge = Challenge(
         title=challenge.title,
         description=challenge.description,
-        latitude=challenge.latitude,
-        longitude=challenge.longitude,
-        boundary=challenge.boundary,
+        boundary=challenge.boundary.json(),
         user_id=current_user.id
     )
     db.add(db_challenge)
@@ -72,7 +71,7 @@ async def upload_challenge_photo(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    # Update challenge with photo path
+    # Update challenge with photo
     challenge.photo_path = file_path
     db.commit()
     

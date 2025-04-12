@@ -1,173 +1,121 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { Form, Input, Button, Card, message, Typography } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import { challengeService } from '../../services/api';
+import { useParams } from 'react-router-dom';
+
+const { Title, Text } = Typography;
 
 const PlayChallenge = () => {
-    const { id } = useParams();
-    const { user } = useAuth();
-    const navigate = useNavigate();
-
+    const { challengeId } = useParams();
     const [challenge, setChallenge] = useState(null);
-    const [photo, setPhoto] = useState(null);
-    const [preview, setPreview] = useState('');
-    const [guessCount, setGuessCount] = useState(1);
-    const [result, setResult] = useState(null);
+    const [guessCount, setGuessCount] = useState(0);
+    const [feedback, setFeedback] = useState('');
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [leaderboard, setLeaderboard] = useState([]);
+    const [form] = Form.useForm();
 
     useEffect(() => {
-        const fetchChallenge = async () => {
-            try {
-                const data = await challengeService.getChallenges();
-                const challengeData = data.find(c => c._id === id);
-                if (!challengeData) {
-                    setError('Challenge not found');
-                    return;
-                }
-                setChallenge(challengeData);
+        loadChallenge();
+    }, [challengeId]);
 
-                // Fetch leaderboard
-                const leaderboardData = await challengeService.getLeaderboard(id);
-                setLeaderboard(leaderboardData);
-            } catch (err) {
-                setError('Failed to load challenge');
-            }
-        };
-
-        fetchChallenge();
-    }, [id]);
-
-    const handlePhotoChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setPhoto(file);
-            setPreview(URL.createObjectURL(file));
+    const loadChallenge = async () => {
+        try {
+            const data = await challengeService.getChallenge(challengeId);
+            setChallenge(data);
+        } catch (error) {
+            message.error('Failed to load challenge');
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
-
-        if (!photo) {
-            setError('Please select a photo');
-            setLoading(false);
+    const handleSubmit = async (values) => {
+        if (!values.photo) {
+            message.error('Please upload a photo');
             return;
         }
 
+        setLoading(true);
         try {
-            const response = await challengeService.submitGuess(
-                id,
-                user.user_id,
-                photo,
-                guessCount
-            );
+            const formData = new FormData();
+            formData.append('photo', values.photo[0].originFileObj);
+            formData.append('guess_count', guessCount + 1);
 
-            setResult(response);
+            const response = await challengeService.submitGuess(challengeId, formData);
+            setFeedback(response.feedback);
+            setGuessCount(guessCount + 1);
 
-            if (response.is_correct) {
-                // Refresh leaderboard
-                const leaderboardData = await challengeService.getLeaderboard(id);
-                setLeaderboard(leaderboardData);
-            } else {
-                setGuessCount(guessCount + 1);
+            if (response.correct) {
+                message.success('Congratulations! You found the correct location!');
+                // Update leaderboard
+                loadChallenge();
             }
-        } catch (err) {
-            setError(err.response?.data?.error || 'Failed to submit guess');
+        } catch (error) {
+            message.error('Failed to submit guess');
         } finally {
             setLoading(false);
         }
     };
 
     if (!challenge) {
-        return <div className="text-center">Loading challenge...</div>;
+        return <div>Loading...</div>;
     }
 
     return (
-        <div className="row">
-            <div className="col-md-8">
-                <div className="card mb-4">
-                    <div className="card-body">
-                        <h2 className="mb-4">Challenge #{challenge._id}</h2>
-                        <p className="lead">{challenge.caption}</p>
+        <div style={{ padding: '20px' }}>
+            <Card>
+                <Title level={2}>{challenge.title}</Title>
+                <Text>{challenge.description}</Text>
+            </Card>
 
-                        {error && <div className="alert alert-danger">{error}</div>}
+            <div style={{ marginTop: '20px' }}>
+                <Form
+                    form={form}
+                    onFinish={handleSubmit}
+                    layout="vertical"
+                >
+                    <Form.Item
+                        name="photo"
+                        label="Upload your guess photo"
+                        valuePropName="fileList"
+                        getValueFromEvent={(e) => {
+                            if (Array.isArray(e)) {
+                                return e;
+                            }
+                            return e?.fileList;
+                        }}
+                    >
+                        <Upload
+                            beforeUpload={() => false}
+                            maxCount={1}
+                        >
+                            <Button icon={<UploadOutlined />}>Upload Photo</Button>
+                        </Upload>
+                    </Form.Item>
 
-                        {result && (
-                            <div className={`alert ${result.is_correct ? 'alert-success' : 'alert-info'}`}>
-                                <h4>{result.is_correct ? 'Correct!' : 'Try Again'}</h4>
-                                <p>{result.hint}</p>
-                                {result.is_correct && (
-                                    <p>Similarity: {(result.similarity * 100).toFixed(2)}%</p>
-                                )}
-                            </div>
-                        )}
+                    <Form.Item>
+                        <Button
+                            type="primary"
+                            htmlType="submit"
+                            loading={loading}
+                        >
+                            Submit Guess
+                        </Button>
+                    </Form.Item>
+                </Form>
 
-                        {!result?.is_correct && (
-                            <form onSubmit={handleSubmit}>
-                                <div className="mb-3">
-                                    <label htmlFor="photo" className="form-label">
-                                        Your Guess
-                                    </label>
-                                    <input
-                                        type="file"
-                                        className="form-control"
-                                        id="photo"
-                                        accept="image/*"
-                                        onChange={handlePhotoChange}
-                                        required
-                                    />
-                                    <small className="text-muted">
-                                        Supported formats: PNG, JPG, JPEG. Max size: 16MB
-                                    </small>
-                                </div>
-                                {preview && (
-                                    <div className="mb-3">
-                                        <img
-                                            src={preview}
-                                            alt="Preview"
-                                            className="img-fluid rounded"
-                                            style={{ maxHeight: '300px' }}
-                                        />
-                                    </div>
-                                )}
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary"
-                                    disabled={loading}
-                                >
-                                    {loading ? 'Submitting...' : 'Submit Guess'}
-                                </button>
-                            </form>
-                        )}
-                    </div>
-                </div>
-            </div>
+                {feedback && (
+                    <Card style={{ marginTop: '20px' }}>
+                        <Title level={4}>Feedback</Title>
+                        <Text>{feedback}</Text>
+                    </Card>
+                )}
 
-            <div className="col-md-4">
-                <div className="card">
-                    <div className="card-body">
-                        <h3>Leaderboard</h3>
-                        <div className="list-group">
-                            {leaderboard.map((entry, index) => (
-                                <div key={index} className="list-group-item">
-                                    <div className="d-flex justify-content-between">
-                                        <span>#{index + 1}</span>
-                                        <span>{entry.guesses} guesses</span>
-                                    </div>
-                                </div>
-                            ))}
-                            {leaderboard.length === 0 && (
-                                <div className="list-group-item">
-                                    No one has solved this challenge yet!
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+                <Card style={{ marginTop: '20px' }}>
+                    <Title level={4}>Your Progress</Title>
+                    <Text>Guesses: {guessCount}</Text>
+                </Card>
             </div>
         </div>
     );

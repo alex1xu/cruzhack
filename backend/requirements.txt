@@ -10,4 +10,7 @@ pillow==10.2.0
 numpy==1.26.4
 python-magic==0.4.27
 bcrypt==4.1.2
-python-magic-bin==0.4.14; sys_platform == 'win32' 
+python-magic-bin==0.4.14; sys_platform == 'win32'
+geojson-pydantic==0.6.0
+shapely==2.0.3
+geopy==2.4.1 
