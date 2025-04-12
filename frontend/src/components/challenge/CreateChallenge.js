@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, useMap, FeatureGroup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-// import 'leaflet-draw/dist/leaflet.draw.css';
 import "leaflet-draw/dist/leaflet.draw-src.css";
 import 'leaflet-draw';
 import { Form, Input, Button, Upload, message } from 'antd';
@@ -95,8 +94,12 @@ const CreateChallenge = () => {
         formData.append('description', values.description);
         formData.append('boundary', JSON.stringify(drawnPolygon.toGeoJSON().geometry));
 
-        if (values.photo) {
+        // Ensure the photo is available and use optional chaining as an extra safeguard.
+        if (values.photo && values.photo[0] && values.photo[0].originFileObj) {
             formData.append('photo', values.photo[0].originFileObj);
+        } else {
+            message.error('Photo upload seems to be missing');
+            return;
         }
 
         try {
@@ -134,6 +137,11 @@ const CreateChallenge = () => {
                 <Form.Item
                     name="photo"
                     label="Photo"
+                    valuePropName="fileList"
+                    getValueFromEvent={(e) => {
+                        // The Upload component returns an event; extract fileList from it.
+                        return Array.isArray(e) ? e : e && e.fileList;
+                    }}
                     rules={[{ required: true, message: 'Please upload a photo' }]}
                 >
                     <Upload

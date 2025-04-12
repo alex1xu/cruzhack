@@ -35,10 +35,10 @@ def validate_image(file):
         return False, "No file provided"
     if not allowed_file(file.filename):
         return False, "Invalid file type"
-    if file.content_length > MAX_CONTENT_LENGTH:
+    if file.content_length and file.content_length > MAX_CONTENT_LENGTH:
         return False, "File too large"
         
-    # Check MIME type
+    # Check MIME type using the first 1024 bytes
     mime = magic.Magic(mime=True)
     file_mime = mime.from_buffer(file.read(1024))
     file.seek(0)
@@ -48,6 +48,9 @@ def validate_image(file):
         
     return True, None
 
+# -------------------------------
+# Authentication endpoints
+# -------------------------------
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     try:
@@ -93,13 +96,21 @@ def login():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# -------------------------------
+# Challenge endpoints
+# -------------------------------
+
 @app.route('/api/challenges', methods=['POST'])
 def create_challenge():
     try:
+        # Get form data
         user_id = request.form.get('user_id')
+        title = request.form.get('title')
+        description = request.form.get('description')
+        boundary = request.form.get('boundary')
         photo = request.files.get('photo')
 
-        if not all([user_id, photo]):
+        if not all([user_id, title, description, boundary, photo]):
             return jsonify({'error': 'Missing required fields'}), 400
             
         # Validate image
@@ -110,15 +121,24 @@ def create_challenge():
         # Generate embedding and caption
         embedding, caption = embedding_service.process_image(photo)
         
+        # Save photo
+        filename = secure_filename(photo.filename)
+        photo_path = os.path.join('uploads', filename)
+        os.makedirs('uploads', exist_ok=True)
+        photo.save(photo_path)
+        
         # Create challenge
         challenge = Challenge(
             user_id=user_id,
-            location={'lat': 0, 'lng': 0},
+            title=title,
+            description=description,
+            boundary=boundary,
+            photo_path=photo_path,
             embedding=embedding,
             caption=caption
         )
 
-        # Save to database
+        # Save to the database
         challenge_id = db.save_challenge(challenge)
         
         return jsonify({
@@ -153,7 +173,7 @@ def submit_guess(challenge_id):
         if not is_valid:
             return jsonify({'error': error}), 400
             
-        # Get challenge
+        # Retrieve challenge from DB
         challenge = db.get_challenge(challenge_id)
         if not challenge:
             return jsonify({'error': 'Challenge not found'}), 404
@@ -161,21 +181,21 @@ def submit_guess(challenge_id):
         # Process guess image
         guess_embedding, guess_caption = embedding_service.process_image(photo)
         
-        # Calculate similarity
+        # Calculate similarity between guess and challenge embeddings
         similarity = embedding_service.calculate_similarity(
             challenge.embedding, 
             guess_embedding
         )
         
-        # Check if guess is correct
-        is_correct = similarity > 0.8  # Adjust threshold as needed
+        # Determine if the guess is correct (threshold adjustable)
+        is_correct = similarity > 0.8
         
         if is_correct:
-            # Update leaderboard
+            # Update leaderboard if guess is correct
             db.update_leaderboard(challenge_id, user_id, guess_count)
             hint = "Congratulations! You've solved the challenge!"
         else:
-            # Generate hint
+            # Generate a hint using the Gemini service
             hint = gemini_service.generate_hint(challenge.caption, guess_caption)
             
         return jsonify({
@@ -196,5 +216,18 @@ def get_leaderboard(challenge_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/challenges/<challenge_id>', methods=['GET'])
+def get_challenge(challenge_id):
+    """
+    Retrieves a single challenge by its ID.
+    """
+    try:
+        challenge = db.get_challenge(challenge_id)
+        if not challenge:
+            return jsonify({'error': 'Challenge not found'}), 404
+        return jsonify(challenge.to_dict())
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True)

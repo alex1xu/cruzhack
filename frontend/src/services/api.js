@@ -27,7 +27,7 @@ export const authService = {
 
 export const challengeService = {
     createChallenge: async (formData) => {
-        const response = await api.post('/api/challenges/', formData, {
+        const response = await api.post('/challenges', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -36,17 +36,17 @@ export const challengeService = {
     },
 
     getChallenges: async () => {
-        const response = await api.get('/api/challenges/');
+        const response = await api.get('/challenges');
         return response.data;
     },
 
     getChallenge: async (id) => {
-        const response = await api.get(`/api/challenges/${id}`);
+        const response = await api.get(`/challenges/${id}`);
         return response.data;
     },
 
     submitGuess: async (challengeId, formData) => {
-        const response = await api.post(`/api/challenges/${challengeId}/guess`, formData, {
+        const response = await api.post(`/challenges/${challengeId}/guess`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },
@@ -55,7 +55,7 @@ export const challengeService = {
     },
 
     getLeaderboard: async (challengeId) => {
-        const response = await api.get(`/api/challenges/${challengeId}/leaderboard`);
+        const response = await api.get(`/challenges/${challengeId}/leaderboard`);
         return response.data;
     },
 }; 
