@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 import json
 import numpy as np
-from sqlalchemy import Column, Integer, String, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, LargeBinary
 from sqlalchemy.orm import relationship
 # from geojson_pydantic import Polygon
 
@@ -15,7 +15,7 @@ class Challenge:
     description = Column(Text)
     photo_path = Column(String(255))
     boundary = Column(Text)  # Store GeoJSON as string
-    embedding = Column(Text)  # Store embedding as string
+    embedding = Column(LargeBinary)  # Store embedding as binary
     caption = Column(Text)
 
     user = relationship("User", back_populates="challenges")
@@ -49,7 +49,7 @@ class Challenge:
             "description": self.description,
             "photo_path": self.photo_path,
             "boundary": json.loads(self.boundary) if self.boundary else None,
-            "embedding": self.embedding.tolist() if self.embedding is not None else None,
+            "embedding": self.embedding.tolist() if isinstance(self.embedding, np.ndarray) else None,
             "caption": self.caption,
             "created_at": self.created_at.isoformat(),
             "leaderboard": self.leaderboard
@@ -57,13 +57,22 @@ class Challenge:
         
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Challenge':
+        # Convert embedding from list to numpy array if it exists
+        embedding = None
+        if data.get('embedding'):
+            try:
+                embedding = np.array(data['embedding'])
+            except Exception as e:
+                print(f"Error converting embedding: {str(e)}")
+                embedding = None
+
         challenge = cls(
             user_id=data['user_id'],
             title=data['title'],
             description=data.get('description', ''),
             boundary=json.dumps(data.get('boundary', {})),
             photo_path=data.get('photo_path'),
-            embedding=np.array(data.get('embedding')) if data.get('embedding') else None,
+            embedding=embedding,
             caption=data.get('caption')
         )
         challenge._id = data.get('_id')

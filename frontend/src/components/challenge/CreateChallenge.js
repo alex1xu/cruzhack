@@ -8,6 +8,7 @@ import { Form, Input, Button, Upload, message } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { challengeService } from '../../services/api';
 import LocationSearch from '../common/LocationSearch';
+import { useAuth } from '../../contexts/AuthContext';
 
 const LeafletDrawControl = ({ onCreated, onDeleted, drawnItemsRef }) => {
     const map = useMap();
@@ -57,6 +58,8 @@ const CreateChallenge = () => {
     const [map, setMap] = useState(null);
     const drawnItemsRef = useRef(new L.FeatureGroup());
 
+    const { user } = useAuth();
+
     // Event handler for when a new shape is drawn
     const handleDrawCreated = useCallback((e) => {
         const layer = e.layer;
@@ -90,6 +93,7 @@ const CreateChallenge = () => {
         }
 
         const formData = new FormData();
+        formData.append('user_id', user.user_id);
         formData.append('title', values.title);
         formData.append('description', values.description);
         formData.append('boundary', JSON.stringify(drawnPolygon.toGeoJSON().geometry));

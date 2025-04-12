@@ -6,6 +6,7 @@ from models.user import User
 from bson import ObjectId
 from datetime import datetime
 from typing import Dict, List
+import numpy as np
 
 class MongoDB:
     def __init__(self):
@@ -17,24 +18,55 @@ class MongoDB:
         self.users.create_index('username', unique=True)
         
     def save_challenge(self, challenge: Challenge) -> str:
-        challenge_dict = challenge.to_dict()
-        if challenge_dict.get('embedding') is not None:
-            challenge_dict['embedding'] = challenge_dict['embedding'].tolist()
-        result = self.challenges.insert_one(challenge_dict)
-        return str(result.inserted_id)
+        try:
+            challenge_dict = challenge.to_dict()
+            # Ensure embedding is properly converted to list
+            if challenge_dict.get('embedding') is not None:
+                if isinstance(challenge_dict['embedding'], np.ndarray):
+                    challenge_dict['embedding'] = challenge_dict['embedding'].tolist()
+                elif not isinstance(challenge_dict['embedding'], list):
+                    print("Warning: embedding is not in expected format")
+                    challenge_dict['embedding'] = None
+            result = self.challenges.insert_one(challenge_dict)
+            return str(result.inserted_id)
+        except Exception as e:
+            print(f"Error saving challenge: {str(e)}")
+            raise
         
     def get_challenge(self, challenge_id: str) -> Optional[Challenge]:
         try:
             challenge_data = self.challenges.find_one({'_id': ObjectId(challenge_id)})
             if challenge_data:
+                # Ensure embedding is properly converted to numpy array
+                if challenge_data.get('embedding') is not None:
+                    try:
+                        challenge_data['embedding'] = np.array(challenge_data['embedding'])
+                    except Exception as e:
+                        print(f"Error converting embedding: {str(e)}")
+                        challenge_data['embedding'] = None
                 return Challenge.from_dict(challenge_data)
             return None
-        except Exception:
+        except Exception as e:
+            print(f"Error getting challenge: {str(e)}")
             return None
         
     def get_all_challenges(self) -> List[Challenge]:
-        challenges = self.challenges.find()
-        return [Challenge.from_dict(challenge) for challenge in challenges]
+        try:
+            challenges = self.challenges.find()
+            result = []
+            for challenge in challenges:
+                # Ensure embedding is properly converted to numpy array
+                if challenge.get('embedding') is not None:
+                    try:
+                        challenge['embedding'] = np.array(challenge['embedding'])
+                    except Exception as e:
+                        print(f"Error converting embedding: {str(e)}")
+                        challenge['embedding'] = None
+                result.append(Challenge.from_dict(challenge))
+            return result
+        except Exception as e:
+            print(f"Error getting all challenges: {str(e)}")
+            return []
         
     def update_leaderboard(self, challenge_id: str, user_id: str, username: str, guesses: int):
         try:

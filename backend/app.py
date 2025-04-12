@@ -10,6 +10,7 @@ from database.mongodb import MongoDB
 import magic
 from werkzeug.utils import secure_filename
 from typing import Dict, List
+import numpy as np
 
 # Load environment variables
 load_dotenv()
@@ -112,21 +113,24 @@ def create_challenge():
 
         if not all([user_id, title, description, boundary, photo]):
             return jsonify({'error': 'Missing required fields'}), 400
-            
+
         # Validate image
         is_valid, error = validate_image(photo)
         if not is_valid:
             return jsonify({'error': error}), 400
             
+        embedding = np.ndarray([1, 2])
+        caption = "test caption"
+
         # Generate embedding and caption
-        embedding, caption = embedding_service.process_image(photo)
+        # embedding, caption = embedding_service.process_image(photo)
         
         # Save photo
         filename = secure_filename(photo.filename)
         photo_path = os.path.join('uploads', filename)
         os.makedirs('uploads', exist_ok=True)
         photo.save(photo_path)
-        
+
         # Create challenge
         challenge = Challenge(
             user_id=user_id,
@@ -140,7 +144,7 @@ def create_challenge():
 
         # Save to the database
         challenge_id = db.save_challenge(challenge)
-        
+
         return jsonify({
             'message': 'Challenge created successfully',
             'challenge_id': str(challenge_id)
