@@ -90,11 +90,11 @@ class MongoDB:
 
             if user_entry:
                 # Update if the new score is better (i.e., lower guess count)
-                if guesses < user_entry.get('guesses', float('inf')):
+                if guesses < user_entry.get('guess_count', float('inf')):
                     result = self.challenges.update_one(
                         {'_id': ObjectId(challenge_id), 'leaderboard.user_id': user_id},
                         {'$set': {
-                            'leaderboard.$.guesses': guesses,
+                            'leaderboard.$.guess_count': guesses,
                             'leaderboard.$.username': username  # update username if necessary
                         }}
                     )
@@ -108,7 +108,7 @@ class MongoDB:
                     {'$push': {'leaderboard': {
                         'user_id': user_id,
                         'username': username,
-                        'guesses': guesses
+                        'guess_count': guesses
                     }}}
                 )
                 print(f"Added new leaderboard entry for user {user_id}: matched {result.matched_count}, modified {result.modified_count}")
@@ -116,7 +116,6 @@ class MongoDB:
             print(str(e))
             print(f"Error updating leaderboard: {str(e)}")
 
-        
     def get_leaderboard(self, challenge_id: str) -> List[Dict]:
         try:
             challenge = self.challenges.find_one({'_id': ObjectId(challenge_id)})
@@ -125,7 +124,7 @@ class MongoDB:
                 
             leaderboard = challenge.get('leaderboard', [])
             # Sort by number of guesses (ascending)
-            leaderboard.sort(key=lambda x: x['guesses'])
+            leaderboard.sort(key=lambda x: x['guess_count'])
             return leaderboard
         except Exception as e:
             print(f"Error getting leaderboard: {str(e)}")

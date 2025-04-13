@@ -119,18 +119,14 @@ def create_challenge():
         if not is_valid:
             return jsonify({'error': error}), 400
             
-        # debug only, michael jeff remove
-        embedding = np.ndarray([1, 2])
-        caption = "test caption"
-
-        # Generate embedding and caption
-        # embedding, caption = embedding_service.process_image(photo)
-        
         # Save photo
         filename = secure_filename(photo.filename)
         photo_path = os.path.join('uploads', filename)
         os.makedirs('uploads', exist_ok=True)
         photo.save(photo_path)
+
+        # Generate caption using Gemini
+        caption = gemini_service.generate_caption(photo_path)
 
         # Create challenge
         challenge = Challenge(
@@ -139,7 +135,6 @@ def create_challenge():
             description=description,
             boundary=boundary,
             photo_path=photo_path,
-            embedding=embedding,
             caption=caption
         )
 
@@ -170,8 +165,6 @@ def submit_guess(challenge_id):
         username = request.form.get('username')
         photo = request.files.get('photo')
         guess_count = int(request.form.get('guess_count', 1))
-        
-        print(user_id, username, photo, guess_count)
 
         if not all([user_id, photo]):
             return jsonify({'error': 'Missing required fields'}), 400
@@ -186,38 +179,46 @@ def submit_guess(challenge_id):
         if not challenge:
             return jsonify({'error': 'Challenge not found'}), 404
         
-        # debug only, michael jeff remove
-        guess_embedding = np.ndarray([1, 2])
-        guess_caption = "test caption"
+        # Save guess photo
+        filename = secure_filename(photo.filename)
+        guess_photo_path = os.path.join('uploads', f'guess_{filename}')
+        photo.save(guess_photo_path)
+        
+        # Get captions
+        answer_caption = challenge.caption
+        guess_caption = gemini_service.generate_caption(guess_photo_path)
 
-        # Process guess image
-        # guess_embedding, guess_caption = embedding_service.process_image(photo)
-        
-        # Calculate similarity between guess and challenge embeddings
-        # similarity = embedding_service.calculate_similarity(
-        #     challenge.embedding, 
-        #     guess_embedding
-        # )
+        # print('ac',answer_caption,'gc', guess_caption)
 
-        similarity = 0.3
+        # Calculate similarities
+        img_similarity_score = embedding_service.img_similarity(guess_photo_path, challenge.photo_path)
+        text_similarity_score = embedding_service.caption_similarity(guess_caption, answer_caption)
+        metric_similarity = embedding_service.metric_similarity(img_similarity_score, text_similarity_score)
+
+        # print('is',img_similarity_score)
+        # print('ts',text_similarity_score)
+        # print('ms',metric_similarity)
         
-        # Determine if the guess is correct (threshold adjustable)
-        is_correct = True
+        # Check object match
+        match = embedding_service.object_match(guess_photo_path, answer_caption)
         
+        # print('match',match)
+
+        # Determine if guess is correct
+        is_correct = embedding_service.decision_threshold(match, metric_similarity)
+
         if is_correct:
-            print(challenge_id, user_id, username, guess_count)
             # Update leaderboard if guess is correct
             db.update_leaderboard(challenge_id, user_id, username, guess_count)
             feedback = "Congratulations! You've solved the challenge!"
         else:
             # Generate a hint using the Gemini service
-            feedback = "bad guess"
-            # feedback = gemini_service.generate_hint(challenge.caption, guess_caption)
+            feedback = gemini_service.generate_hint(challenge.photo_path, guess_photo_path)
             
         return jsonify({
             'correct': is_correct,
             'feedback': feedback,
-            'similarity': float(similarity)
+            'similarity': float(metric_similarity)
         })
         
     except Exception as e:

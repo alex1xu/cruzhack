@@ -169,7 +169,9 @@ const CreateChallenge = () => {
                         center={[0, 0]}
                         zoom={2}
                         style={{ height: '100%', width: '100%' }}
-                        whenCreated={setMap}
+                        whenCreated={(mapInstance) => {
+                            setMap(mapInstance);
+                        }}
                     >
                         <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

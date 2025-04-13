@@ -50,17 +50,6 @@ const PlayChallenge = () => {
                 if (layer.getBounds()) {
                     const bounds = layer.getBounds();
                     setMapCenter(bounds.getCenter());
-                    // Set a reasonable zoom level that shows the entire boundary
-                    const map = document.querySelector('.leaflet-container');
-                    if (map) {
-                        const mapInstance = map._leaflet_map;
-                        if (mapInstance) {
-                            mapInstance.fitBounds(bounds, {
-                                padding: [50, 50],
-                                maxZoom: 15
-                            });
-                        }
-                    }
                 }
             }
         } catch (error) {
@@ -152,9 +141,14 @@ const PlayChallenge = () => {
                         style={{ height: '400px', width: '100%' }}
                         whenCreated={(map) => {
                             // Fit the map view to the boundary's bounds
-                            const layer = L.geoJSON(geoJsonData);
-                            if (layer.getBounds().isValid()) {
-                                map.fitBounds(layer.getBounds());
+                            if (geoJsonData) {
+                                const layer = L.geoJSON(geoJsonData);
+                                if (layer.getBounds().isValid()) {
+                                    map.fitBounds(layer.getBounds(), {
+                                        padding: [50, 50],
+                                        maxZoom: 15
+                                    });
+                                }
                             }
                         }}
                     >
