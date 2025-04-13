@@ -1,4 +1,34 @@
-backend/.env
-frontend/.env
-frontend/node_modules
-backend/clip_cache
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/.cache/
+
+# ML Models and Caches
+backend/blip_cache/
+backend/clip_cache/
+*.bin
+*.pt
+*.pth
+*.h5
+*.onnx
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache directories
+backend/services/clip_cache/
+backend/services/blip_cache/
