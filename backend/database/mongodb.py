@@ -132,7 +132,10 @@ class MongoDB:
         
     def save_user(self, user: User) -> str:
         try:
-            result = self.users.insert_one(user.to_dict())
+            user_dict = user.to_dict()
+            if '_id' in user_dict:
+                del user_dict['_id']  # Remove _id if it exists to let MongoDB generate a new one
+            result = self.users.insert_one(user_dict)
             return str(result.inserted_id)
         except Exception as e:
             if 'duplicate key error' in str(e):
@@ -140,19 +143,33 @@ class MongoDB:
             raise e
         
     def get_user(self, user_id: str) -> Optional[User]:
-        user_data = self.users.find_one({'_id': ObjectId(user_id)})
-        if user_data:
-            return User.from_dict(user_data)
-        return None
+        try:
+            user_data = self.users.find_one({'_id': ObjectId(user_id)})
+            if user_data:
+                return User.from_dict(user_data)
+            return None
+        except Exception as e:
+            print(f"Error getting user: {str(e)}")
+            return None
         
     def get_user_by_username(self, username: str) -> Optional[User]:
-        user_data = self.users.find_one({'username': username})
-        if user_data:
-            return User.from_dict(user_data)
-        return None
+        try:
+            user_data = self.users.find_one({'username': username})
+            if user_data:
+                return User.from_dict(user_data)
+            return None
+        except Exception as e:
+            print(f"Error getting user by username: {str(e)}")
+            return None
         
     def authenticate_user(self, username: str, password: str) -> Optional[User]:
-        user = self.get_user_by_username(username)
-        if user and user.verify_password(password):
-            return user
-        return None 
+        try:
+            user_data = self.users.find_one({'username': username})
+            if user_data:
+                user = User.from_dict(user_data)
+                if user.verify_password(password):
+                    return user
+            return None
+        except Exception as e:
+            print(f"Error authenticating user: {str(e)}")
+            return None 

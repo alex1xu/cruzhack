@@ -91,7 +91,7 @@ def login():
             
         return jsonify({
             'message': 'Login successful',
-            'user_id': str(user._id)
+            'user_id': user._id
         })
         
     except Exception as e:

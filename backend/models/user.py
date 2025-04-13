@@ -4,15 +4,16 @@ import bcrypt
 import re
 
 class User:
-    def __init__(self, username: str, password: str):
+    def __init__(self, username: str, password: str, is_login: bool = False, _id: str = None):
         if not self._validate_username(username):
             raise ValueError("Invalid username format")
-        if not self._validate_password(password):
+        if not is_login and not self._validate_password(password):
             raise ValueError("Invalid password format")
             
         self.username = username
         self.password_hash = self._hash_password(password)
         self.created_at = datetime.utcnow()
+        self._id = _id
         self.stats = {
             'challenges_created': 0,
             'challenges_solved': 0,
@@ -20,18 +21,23 @@ class User:
         }
         
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        result = {
             'username': self.username,
             'password_hash': self.password_hash,
             'created_at': self.created_at.isoformat(),
             'stats': self.stats
         }
+        if self._id:
+            result['_id'] = self._id
+        return result
         
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'User':
         user = cls(
             username=data['username'],
-            password="dummy"  # Password is not stored in plain text
+            password="dummy",  # Password is not stored in plain text
+            is_login=True,  # Skip password validation when loading from DB
+            _id=str(data.get('_id')) if data.get('_id') else None
         )
         user.password_hash = data['password_hash']
         user.created_at = datetime.fromisoformat(data['created_at'])
