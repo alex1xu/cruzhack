@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import "leaflet-draw/dist/leaflet.draw-src.css";
+import 'leaflet-draw';
 import { Button, Card, List, message } from 'antd';
 import { PlayCircleOutlined } from '@ant-design/icons';
 import { challengeService } from '../../services/api';
@@ -19,7 +21,8 @@ const ChallengeView = () => {
     const loadChallenges = async () => {
         try {
             const data = await challengeService.getChallenges();
-            setChallenges(data);
+            // Make sure to only set challenges if data is an array.
+            setChallenges(Array.isArray(data) ? data : []);
         } catch (error) {
             message.error('Failed to load challenges');
         }
@@ -60,15 +63,13 @@ const ChallengeView = () => {
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     />
                     {challenges.map((challenge) => {
-                        // Calculate center of the boundary for marker placement
                         let center;
                         if (challenge.boundary) {
                             const bounds = L.geoJSON(challenge.boundary).getBounds();
                             center = bounds.getCenter();
                         } else {
-                            center = [0, 0]; // Default position if no boundary
+                            center = [0, 0]; // Default position if no boundary is available.
                         }
-
                         return (
                             <Marker
                                 key={challenge.id}
@@ -98,7 +99,7 @@ const ChallengeView = () => {
                             style={{
                                 color: '#3388ff',
                                 fillColor: '#3388ff',
-                                fillOpacity: 0.2
+                                fillOpacity: 0.2,
                             }}
                         />
                     )}
@@ -124,4 +125,4 @@ const ChallengeView = () => {
     );
 };
 
-export default ChallengeView; 
+export default ChallengeView;

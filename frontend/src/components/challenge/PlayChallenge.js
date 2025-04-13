@@ -6,6 +6,7 @@ import { Form, Input, Button, Card, message, Typography } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { challengeService } from '../../services/api';
 import { useParams } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { Title, Text } = Typography;
 
@@ -16,6 +17,8 @@ const PlayChallenge = () => {
     const [feedback, setFeedback] = useState('');
     const [loading, setLoading] = useState(false);
     const [form] = Form.useForm();
+
+    const { user } = useAuth();
 
     useEffect(() => {
         loadChallenge();
@@ -39,6 +42,8 @@ const PlayChallenge = () => {
         setLoading(true);
         try {
             const formData = new FormData();
+            formData.append('user_id', user.user_id);
+            formData.append('username', user.username);
             formData.append('photo', values.photo[0].originFileObj);
             formData.append('guess_count', guessCount + 1);
 

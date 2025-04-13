@@ -31,12 +31,12 @@ const Navbar = () => {
                             <>
                                 <li className="nav-item">
                                     <Link className="nav-link" to="/">
-                                        Challenges
+                                        Find Challenges
                                     </Link>
                                 </li>
                                 <li className="nav-item">
                                     <Link className="nav-link" to="/create-challenge">
-                                        Create Challenge
+                                        Create Challenges
                                     </Link>
                                 </li>
                             </>

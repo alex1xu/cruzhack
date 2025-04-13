@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Link } from 'react-router-dom';
 import { challengeService } from '../../services/api';
 import 'leaflet/dist/leaflet.css';
+import "leaflet-draw/dist/leaflet.draw-src.css";
+import 'leaflet-draw';
 import L from 'leaflet';
 
 // Fix for default marker icons in Leaflet
@@ -22,7 +24,8 @@ const ChallengeMap = () => {
         const fetchChallenges = async () => {
             try {
                 const data = await challengeService.getChallenges();
-                setChallenges(data);
+                // Ensure the returned data is an array.
+                setChallenges(Array.isArray(data) ? data : []);
             } catch (err) {
                 setError('Failed to load challenges');
             } finally {
@@ -56,36 +59,44 @@ const ChallengeMap = () => {
                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                             />
-                            {challenges.map((challenge) => (
-                                <Marker
-                                    key={challenge._id}
-                                    position={[challenge.location.lat, challenge.location.lng]}
-                                >
-                                    <Popup>
-                                        <div>
-                                            <h5>Challenge #{challenge._id}</h5>
-                                            <p>{challenge.caption}</p>
-                                            <Link
-                                                to={`/challenge/${challenge._id}`}
-                                                className="btn btn-primary btn-sm"
-                                            >
-                                                Play Challenge
-                                            </Link>
-                                        </div>
-                                    </Popup>
-                                </Marker>
-                            ))}
+                            {challenges.map((challenge) => {
+                                let markerPosition = [0, 0];
+                                if (challenge.boundary) {
+                                    // Calculate bounds from the challenge's GeoJSON boundary and determine its center.
+                                    const bounds = L.geoJSON(challenge.boundary).getBounds();
+                                    markerPosition = bounds.getCenter();
+                                }
+                                return (
+                                    <Marker
+                                        key={challenge.id || challenge._id}
+                                        position={markerPosition}
+                                    >
+                                        <Popup>
+                                            <div>
+                                                <h5>Challenge #{challenge.id || challenge._id}</h5>
+                                                <p>{challenge.caption}</p>
+                                                <Link
+                                                    to={`/challenge/${challenge.id || challenge._id}`}
+                                                    className="btn btn-primary btn-sm"
+                                                >
+                                                    Play Challenge
+                                                </Link>
+                                            </div>
+                                        </Popup>
+                                    </Marker>
+                                );
+                            })}
                         </MapContainer>
                     </div>
                 </div>
                 <div className="col-md-4">
                     <div className="list-group">
                         {challenges.map((challenge) => (
-                            <div key={challenge._id} className="list-group-item">
-                                <h5 className="mb-1">Challenge #{challenge._id}</h5>
+                            <div key={challenge.id || challenge._id} className="list-group-item">
+                                <h5 className="mb-1">Challenge #{challenge.id || challenge._id}</h5>
                                 <p className="mb-1">{challenge.caption}</p>
                                 <Link
-                                    to={`/challenge/${challenge._id}`}
+                                    to={`/challenge/${challenge.id || challenge._id}`}
                                     className="btn btn-primary btn-sm"
                                 >
                                     Play Challenge
@@ -99,4 +110,4 @@ const ChallengeMap = () => {
     );
 };
 
-export default ChallengeMap; 
+export default ChallengeMap;

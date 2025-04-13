@@ -119,6 +119,7 @@ def create_challenge():
         if not is_valid:
             return jsonify({'error': error}), 400
             
+        # debug only, michael jeff remove
         embedding = np.ndarray([1, 2])
         caption = "test caption"
 
@@ -170,7 +171,7 @@ def submit_guess(challenge_id):
         photo = request.files.get('photo')
         guess_count = int(request.form.get('guess_count', 1))
         
-        if not all([user_id, username, photo]):
+        if not all([user_id, photo]):
             return jsonify({'error': 'Missing required fields'}), 400
             
         # Validate image
@@ -182,9 +183,13 @@ def submit_guess(challenge_id):
         challenge = db.get_challenge(challenge_id)
         if not challenge:
             return jsonify({'error': 'Challenge not found'}), 404
-            
+        
+        # debug only, michael jeff remove
+        guess_embedding = np.ndarray([1, 2])
+        guess_caption = "test caption"
+
         # Process guess image
-        guess_embedding, guess_caption = embedding_service.process_image(photo)
+        # guess_embedding, guess_caption = embedding_service.process_image(photo)
         
         # Calculate similarity between guess and challenge embeddings
         similarity = embedding_service.calculate_similarity(

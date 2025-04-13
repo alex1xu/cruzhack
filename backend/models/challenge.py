@@ -51,23 +51,23 @@ class Challenge:
             "boundary": json.loads(self.boundary) if self.boundary else None,
             "embedding": self.embedding.tolist() if isinstance(self.embedding, np.ndarray) else None,
             "caption": self.caption,
-            "created_at": self.created_at.isoformat(),
-            "leaderboard": self.leaderboard
+            "created_at": self.created_at.isoformat() if hasattr(self, 'created_at') else None,
+            "leaderboard": getattr(self, 'leaderboard', [])
         }
         
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Challenge':
-        # Convert embedding from list to numpy array if it exists
+    # Convert embedding from list to numpy array if it exists
         embedding = None
-        if data.get('embedding'):
+        if data.get('embedding') is not None:
             try:
-                embedding = np.array(data['embedding'])
+                embedding = np.array(data['embedding'], dtype=np.float32)
             except Exception as e:
                 print(f"Error converting embedding: {str(e)}")
                 embedding = None
 
         challenge = cls(
-            user_id=data['user_id'],
+            user_id=str(data['user_id']),
             title=data['title'],
             description=data.get('description', ''),
             boundary=json.dumps(data.get('boundary', {})),
@@ -76,6 +76,9 @@ class Challenge:
             caption=data.get('caption')
         )
         challenge._id = data.get('_id')
-        challenge.created_at = datetime.fromisoformat(data['created_at'])
+        if 'created_at' in data and data['created_at']:
+            challenge.created_at = datetime.fromisoformat(data['created_at'])
+        else:
+            challenge.created_at = datetime.utcnow()
         challenge.leaderboard = data.get('leaderboard', [])
         return challenge 
