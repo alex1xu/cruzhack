@@ -24,8 +24,7 @@ const ChallengeMap = () => {
         const fetchChallenges = async () => {
             try {
                 const data = await challengeService.getChallenges();
-                // Ensure the returned data is an array.
-                setChallenges(Array.isArray(data) ? data : []);
+                setChallenges(data);
             } catch (err) {
                 setError('Failed to load challenges');
             } finally {
@@ -50,11 +49,7 @@ const ChallengeMap = () => {
             <div className="row">
                 <div className="col-md-8">
                     <div style={{ height: '500px', width: '100%' }}>
-                        <MapContainer
-                            center={[0, 0]}
-                            zoom={2}
-                            style={{ height: '100%', width: '100%' }}
-                        >
+                        <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
                             <TileLayer
                                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -62,21 +57,31 @@ const ChallengeMap = () => {
                             {challenges.map((challenge) => {
                                 let markerPosition = [0, 0];
                                 if (challenge.boundary) {
-                                    // Calculate bounds from the challenge's GeoJSON boundary and determine its center.
-                                    const bounds = L.geoJSON(challenge.boundary).getBounds();
+                                    // Ensure the boundary is an object:
+                                    let boundary = challenge.boundary;
+                                    if (typeof boundary === 'string') {
+                                        try {
+                                            boundary = JSON.parse(boundary);
+                                        } catch (e) {
+                                            console.error("Failed to parse boundary", e);
+                                        }
+                                    }
+                                    // Wrap the geometry in a Feature for proper handling
+                                    const geojsonFeature = {
+                                        type: "Feature",
+                                        geometry: boundary,
+                                    };
+                                    const bounds = L.geoJSON(geojsonFeature).getBounds();
                                     markerPosition = bounds.getCenter();
                                 }
                                 return (
-                                    <Marker
-                                        key={challenge.id || challenge._id}
-                                        position={markerPosition}
-                                    >
+                                    <Marker key={challenge.id} position={markerPosition}>
                                         <Popup>
                                             <div>
-                                                <h5>Challenge #{challenge.id || challenge._id}</h5>
-                                                <p>{challenge.caption}</p>
+                                                <h5>{challenge.title}</h5>
+                                                <p>{challenge.description}</p>
                                                 <Link
-                                                    to={`/challenge/${challenge.id || challenge._id}`}
+                                                    to={`/challenge/${challenge.id}`}
                                                     className="btn btn-primary btn-sm"
                                                 >
                                                     Play Challenge
@@ -92,11 +97,11 @@ const ChallengeMap = () => {
                 <div className="col-md-4">
                     <div className="list-group">
                         {challenges.map((challenge) => (
-                            <div key={challenge.id || challenge._id} className="list-group-item">
-                                <h5 className="mb-1">Challenge #{challenge.id || challenge._id}</h5>
-                                <p className="mb-1">{challenge.caption}</p>
+                            <div key={challenge.id} className="list-group-item">
+                                <h5 className="mb-1">{challenge.title}</h5>
+                                <p className="mb-1">{challenge.description}</p>
                                 <Link
-                                    to={`/challenge/${challenge.id || challenge._id}`}
+                                    to={`/challenge/${challenge.id}`}
                                     className="btn btn-primary btn-sm"
                                 >
                                     Play Challenge

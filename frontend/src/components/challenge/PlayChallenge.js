@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Form, Input, Button, Card, message, Typography } from 'antd';
+import { Form, Input, Button, Card, message, Typography, Upload } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { challengeService } from '../../services/api';
 import { useParams } from 'react-router-dom';
@@ -11,7 +11,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const { Title, Text } = Typography;
 
 const PlayChallenge = () => {
-    const { challengeId } = useParams();
+    const { id: challengeId } = useParams();
     const [challenge, setChallenge] = useState(null);
     const [guessCount, setGuessCount] = useState(0);
     const [feedback, setFeedback] = useState('');

@@ -37,7 +37,7 @@ export const challengeService = {
 
     getChallenges: async () => {
         const response = await api.get('/challenges');
-        return response.data;
+        return eval(response.data);
     },
 
     getChallenge: async (id) => {
