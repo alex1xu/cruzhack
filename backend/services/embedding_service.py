@@ -132,4 +132,4 @@ class EmbeddingService:
         return beta * img_similarity + (1 - beta) * caption_similarity
 
     def decision_threshold(self, object_match: float, metric: float) -> bool:
-        return object_match > 0.7 or metric > 0.8
+        return object_match > 0.80 or metric > 0.80

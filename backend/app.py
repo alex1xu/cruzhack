@@ -128,6 +128,9 @@ def create_challenge():
         # Generate caption using Gemini
         caption = gemini_service.generate_caption(photo_path)
 
+        # prepend a riddle to description
+        description = description+'\n\n'+gemini_service.generate_riddle(photo_path) 
+
         # Create challenge
         challenge = Challenge(
             user_id=user_id,

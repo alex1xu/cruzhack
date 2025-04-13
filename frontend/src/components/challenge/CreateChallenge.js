@@ -99,7 +99,8 @@ const CreateChallenge = () => {
         const formData = new FormData();
         formData.append('user_id', user.user_id);
         formData.append('title', values.title);
-        formData.append('description', values.description);
+        // formData.append('description', values.description);
+        formData.append('description', " ");
         formData.append('boundary', JSON.stringify(drawnPolygon.toGeoJSON().geometry));
 
         // Ensure the photo is available and use optional chaining as an extra safeguard.
@@ -134,13 +135,13 @@ const CreateChallenge = () => {
                     <Input />
                 </Form.Item>
 
-                <Form.Item
+                {/* <Form.Item
                     name="description"
                     label="Description"
                     rules={[{ required: true, message: 'Please enter a description' }]}
                 >
                     <Input.TextArea />
-                </Form.Item>
+                </Form.Item> */}
 
                 <Form.Item
                     name="photo"

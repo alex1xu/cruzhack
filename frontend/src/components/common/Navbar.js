@@ -1,6 +1,17 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { Button, Layout, Menu, Space, Typography } from 'antd';
+import {
+    HomeOutlined,
+    PlusCircleOutlined,
+    LogoutOutlined,
+    LoginOutlined,
+    UserAddOutlined
+} from '@ant-design/icons';
+
+const { Header } = Layout;
+const { Title } = Typography;
 
 const Navbar = () => {
     const { user, logout } = useAuth();
@@ -11,65 +22,62 @@ const Navbar = () => {
         navigate('/login');
     };
 
+    const menuItems = [
+        {
+            key: 'home',
+            icon: <HomeOutlined />,
+            label: <Link to="/">Home</Link>,
+        },
+        {
+            key: 'create',
+            icon: <PlusCircleOutlined />,
+            label: <Link to="/create-challenge">Create Challenge</Link>,
+        }
+    ];
+
+    const authButtons = user ? (
+        <Space>
+            <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout}>
+                Logout
+            </Button>
+        </Space>
+    ) : (
+        <Space>
+            <Button type="primary" icon={<LoginOutlined />} onClick={() => navigate('/login')}>
+                Login
+            </Button>
+            <Button icon={<UserAddOutlined />} onClick={() => navigate('/register')}>
+                Register
+            </Button>
+        </Space>
+    );
+
     return (
-        <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
-            <div className="container">
-                <Link className="navbar-brand" to="/">
-                    Locle | Find the location!
-                </Link>
-                <button
-                    className="navbar-toggler"
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#navbarNav"
-                >
-                    <span className="navbar-toggler-icon"></span>
-                </button>
-                <div className="collapse navbar-collapse" id="navbarNav">
-                    <ul className="navbar-nav me-auto">
-                        {user && (
-                            <>
-                                <li className="nav-item">
-                                    <Link className="nav-link" to="/">
-                                        Find Challenges
-                                    </Link>
-                                </li>
-                                <li className="nav-item">
-                                    <Link className="nav-link" to="/create-challenge">
-                                        Create Challenges
-                                    </Link>
-                                </li>
-                            </>
-                        )}
-                    </ul>
-                    <ul className="navbar-nav">
-                        {user ? (
-                            <li className="nav-item">
-                                <button
-                                    className="btn btn-outline-light"
-                                    onClick={handleLogout}
-                                >
-                                    Logout
-                                </button>
-                            </li>
-                        ) : (
-                            <>
-                                <li className="nav-item">
-                                    <Link className="nav-link" to="/login">
-                                        Login
-                                    </Link>
-                                </li>
-                                <li className="nav-item">
-                                    <Link className="nav-link" to="/register">
-                                        Register
-                                    </Link>
-                                </li>
-                            </>
-                        )}
-                    </ul>
-                </div>
+        <Header style={{
+            background: '#fff',
+            padding: '0 24px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+        }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+                <Title level={3} style={{ margin: 0, marginRight: '24px' }}>
+                    <Link to="/" style={{ color: '#1890ff' }}>Locle</Link>
+                </Title>
+                {user && (
+                    <Menu
+                        mode="horizontal"
+                        items={menuItems}
+                        style={{ border: 'none', lineHeight: '64px' }}
+                    />
+                )}
             </div>
-        </nav>
+            {authButtons}
+        </Header>
     );
 };
 
