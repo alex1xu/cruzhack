@@ -81,7 +81,11 @@ const CreateChallenge = () => {
     // Callback to recenter and zoom the map when a location is found/selected
     const handleLocationFound = (coordinates) => {
         if (map) {
-            map.setView(coordinates, 15);
+            // Set a reasonable zoom level for the selected location
+            map.setView(coordinates, 15, {
+                animate: true,
+                duration: 1
+            });
         }
     };
 

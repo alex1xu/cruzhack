@@ -70,24 +70,40 @@ class MongoDB:
         
     def update_leaderboard(self, challenge_id: str, user_id: str, username: str, guesses: int):
         try:
-            # Find existing entry for user
+            # Find the challenge document by its ObjectId
             challenge = self.challenges.find_one({'_id': ObjectId(challenge_id)})
             if not challenge:
+                print(f"Challenge with id {challenge_id} not found.")
                 return
-                
-            leaderboard = challenge.get('leaderboard', [])
-            user_entry = next((entry for entry in leaderboard if entry['user_id'] == user_id), None)
             
-            if user_entry:
-                # Update if new score is better
-                if guesses < user_entry['guesses']:
-                    self.challenges.update_one(
-                        {'_id': ObjectId(challenge_id), 'leaderboard.user_id': user_id},
-                        {'$set': {'leaderboard.$.guesses': guesses}}
-                    )
-            else:
-                # Add new entry
+            # Ensure that the leaderboard field exists and is a list
+            if 'leaderboard' not in challenge or challenge['leaderboard'] is None:
                 self.challenges.update_one(
+                    {'_id': ObjectId(challenge_id)},
+                    {'$set': {'leaderboard': []}}
+                )
+                challenge['leaderboard'] = []
+
+            leaderboard = challenge.get('leaderboard', [])
+            # Find an existing entry for this user in the leaderboard
+            user_entry = next((entry for entry in leaderboard if entry.get('user_id') == user_id), None)
+
+            if user_entry:
+                # Update if the new score is better (i.e., lower guess count)
+                if guesses < user_entry.get('guesses', float('inf')):
+                    result = self.challenges.update_one(
+                        {'_id': ObjectId(challenge_id), 'leaderboard.user_id': user_id},
+                        {'$set': {
+                            'leaderboard.$.guesses': guesses,
+                            'leaderboard.$.username': username  # update username if necessary
+                        }}
+                    )
+                    print(f"Leaderboard updated for user {user_id}: matched {result.matched_count}, modified {result.modified_count}")
+                else:
+                    print("New guess count is not lower than the existing score; leaderboard not updated.")
+            else:
+                # Add a new leaderboard entry for this user
+                result = self.challenges.update_one(
                     {'_id': ObjectId(challenge_id)},
                     {'$push': {'leaderboard': {
                         'user_id': user_id,
@@ -95,8 +111,11 @@ class MongoDB:
                         'guesses': guesses
                     }}}
                 )
+                print(f"Added new leaderboard entry for user {user_id}: matched {result.matched_count}, modified {result.modified_count}")
         except Exception as e:
+            print(str(e))
             print(f"Error updating leaderboard: {str(e)}")
+
         
     def get_leaderboard(self, challenge_id: str) -> List[Dict]:
         try:

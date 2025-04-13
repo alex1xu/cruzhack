@@ -171,6 +171,8 @@ def submit_guess(challenge_id):
         photo = request.files.get('photo')
         guess_count = int(request.form.get('guess_count', 1))
         
+        print(user_id, username, photo, guess_count)
+
         if not all([user_id, photo]):
             return jsonify({'error': 'Missing required fields'}), 400
             
@@ -192,21 +194,25 @@ def submit_guess(challenge_id):
         # guess_embedding, guess_caption = embedding_service.process_image(photo)
         
         # Calculate similarity between guess and challenge embeddings
-        similarity = embedding_service.calculate_similarity(
-            challenge.embedding, 
-            guess_embedding
-        )
+        # similarity = embedding_service.calculate_similarity(
+        #     challenge.embedding, 
+        #     guess_embedding
+        # )
+
+        similarity = 0.3
         
         # Determine if the guess is correct (threshold adjustable)
-        is_correct = similarity > 0.8
+        is_correct = True
         
         if is_correct:
+            print(challenge_id, user_id, username, guess_count)
             # Update leaderboard if guess is correct
             db.update_leaderboard(challenge_id, user_id, username, guess_count)
             feedback = "Congratulations! You've solved the challenge!"
         else:
             # Generate a hint using the Gemini service
-            feedback = gemini_service.generate_hint(challenge.caption, guess_caption)
+            feedback = "bad guess"
+            # feedback = gemini_service.generate_hint(challenge.caption, guess_caption)
             
         return jsonify({
             'correct': is_correct,
@@ -215,6 +221,7 @@ def submit_guess(challenge_id):
         })
         
     except Exception as e:
+        print(str(e))
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/challenges/<challenge_id>/leaderboard', methods=['GET'])

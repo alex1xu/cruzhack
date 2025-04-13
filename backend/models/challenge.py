@@ -4,7 +4,7 @@ import json
 import numpy as np
 from sqlalchemy import Column, Integer, String, ForeignKey, Text, LargeBinary
 from sqlalchemy.orm import relationship
-# from geojson_pydantic import Polygon
+import math  # Added for checking finiteness
 
 class Challenge:
     __tablename__ = "challenges"
@@ -40,7 +40,7 @@ class Challenge:
         self.caption = caption
         self.created_at = datetime.utcnow()
         self.leaderboard = []  # List of {'user_id': str, 'username': str, 'guesses': int}
-        
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": str(getattr(self, '_id', '')),
@@ -48,16 +48,19 @@ class Challenge:
             "title": self.title,
             "description": self.description,
             "photo_path": self.photo_path,
+            # Boundary is stored as a JSON string; return it as an object.
             "boundary": json.loads(self.boundary) if self.boundary else None,
-            "embedding": self.embedding.tolist() if isinstance(self.embedding, np.ndarray) else None,
+            # Update embedding: first convert NumPy array to list,
+            # then sanitize the numbers (replace non-finite values with None).
+            "embedding": sanitize_numeric(self.embedding.tolist()) if isinstance(self.embedding, np.ndarray) else None,
             "caption": self.caption,
             "created_at": self.created_at.isoformat() if hasattr(self, 'created_at') else None,
             "leaderboard": getattr(self, 'leaderboard', [])
         }
-        
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'Challenge':
-    # Convert embedding from list to numpy array if it exists
+        # Convert embedding from list to numpy array if it exists
         embedding = None
         if data.get('embedding') is not None:
             try:
@@ -81,4 +84,18 @@ class Challenge:
         else:
             challenge.created_at = datetime.utcnow()
         challenge.leaderboard = data.get('leaderboard', [])
-        return challenge 
+        return challenge
+
+# Helper function to replace non-finite numbers with None
+def sanitize_numeric(value):
+    """
+    Recursively traverse lists/dicts and replace any non-finite floats
+    (like Infinity, -Infinity, or NaN) with None.
+    """
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    elif isinstance(value, list):
+        return [sanitize_numeric(item) for item in value]
+    elif isinstance(value, dict):
+        return {k: sanitize_numeric(v) for k, v in value.items()}
+    return value
